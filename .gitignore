@@ -1,0 +1,9 @@
+# Local environment
+.env
+
+# Generated PKI material (created by the drill, never committed)
+pki/
+
+# Transient output
+*.tmp
+*.log
