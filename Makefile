@@ -1,8 +1,11 @@
-.PHONY: up down ps psql logs
+.PHONY: up down ps psql logs pki
+
+pki:
+	./scripts/gen-pki.sh
 
 up:
 	@test -f .env || cp .env.example .env
-	docker compose up -d
+	docker compose up -d --wait
 
 down:
 	docker compose down -v
