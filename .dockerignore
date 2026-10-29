@@ -1,0 +1,9 @@
+# The image is built from the pinned base plus apt only; no project files are
+# copied into it. Keep secrets, keys, and evidence out of the build context.
+.git
+.env
+pki/
+evidence/
+scratch/
+*.tmp
+*.log
