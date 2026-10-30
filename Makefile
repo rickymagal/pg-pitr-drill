@@ -1,4 +1,4 @@
-.PHONY: up down ps psql logs pki stanza load backup verify info
+.PHONY: up down ps psql logs pki stanza load backup verify info s0
 
 ROWS ?= 100
 INTERVAL ?= 0
@@ -25,6 +25,9 @@ verify:
 
 info:
 	docker compose exec -u postgres pg-primary pgbackrest --stanza=pitr-drill info
+
+s0:
+	./scripts/scenarios/s0-pitr.sh
 
 down:
 	docker compose down -v
