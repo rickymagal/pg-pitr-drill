@@ -50,3 +50,11 @@ ev_verdict() {                     # ev_verdict <criterion> <PASS|FAIL|HOLD> <re
 ev_manifest() {                    # ev_manifest — hash every evidence file in the scenario dir
   ( cd "$EV_DIR" && find . -type f ! -name MANIFEST.sha256 | sort | xargs sha256sum >MANIFEST.sha256 )
 }
+
+ev_expect_fail() {                 # ev_expect_fail <label> <pattern> <cmd...> -> 0 iff it failed for that reason
+  local label="$1" pat="$2"; shift 2
+  local out rc=0
+  out="$("$@" 2>&1)" || rc=$?
+  printf '## [%s] %s (expect fail ~ /%s/)\n$ %s\n%s\n# exit=%s\n' "$(date -u +%FT%TZ)" "$label" "$pat" "$*" "$out" "$rc" >>"$EV_LOG"
+  if [ "$rc" -ne 0 ] && printf '%s' "$out" | grep -qiE "$pat"; then return 0; else return 1; fi
+}

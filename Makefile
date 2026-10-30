@@ -1,4 +1,4 @@
-.PHONY: up down ps psql logs pki stanza load backup verify info s0
+.PHONY: up down ps psql logs pki stanza load backup verify info s0 s1
 
 ROWS ?= 100
 INTERVAL ?= 0
@@ -28,6 +28,9 @@ info:
 
 s0:
 	./scripts/scenarios/s0-pitr.sh
+
+s1:
+	./scripts/scenarios/s1-corrupt-wal.sh
 
 down:
 	docker compose down -v
