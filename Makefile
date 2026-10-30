@@ -1,4 +1,4 @@
-.PHONY: up down ps psql logs pki stanza load backup verify info s0 s1 s2 s3 s4 s5 s6 s7 s8
+.PHONY: up down ps psql logs pki stanza load backup verify info s0 s1 s2 s3 s4 s5 s6 s7 s8 s9
 
 ROWS ?= 100
 INTERVAL ?= 0
@@ -52,6 +52,9 @@ s7:
 
 s8:
 	./scripts/scenarios/s8-quarantine-restore.sh
+
+s9:
+	./scripts/scenarios/s9-consistency.sh
 
 down:
 	docker compose down -v
