@@ -1,4 +1,7 @@
-.PHONY: up down ps psql logs pki
+.PHONY: up down ps psql logs pki stanza load backup verify info
+
+ROWS ?= 100
+INTERVAL ?= 0
 
 pki:
 	./scripts/gen-pki.sh
@@ -6,6 +9,22 @@ pki:
 up: pki
 	@test -f .env || cp .env.example .env
 	docker compose up -d --wait
+
+stanza:
+	docker compose exec -u postgres pg-primary pgbackrest --stanza=pitr-drill stanza-create
+	docker compose exec -u postgres pg-primary pgbackrest --stanza=pitr-drill check
+
+load:
+	./scripts/load-gen.sh $(ROWS) $(INTERVAL)
+
+backup:
+	docker compose exec -u postgres pg-primary pgbackrest --stanza=pitr-drill backup --type=full
+
+verify:
+	docker compose exec -u postgres pg-primary pgbackrest --stanza=pitr-drill verify
+
+info:
+	docker compose exec -u postgres pg-primary pgbackrest --stanza=pitr-drill info
 
 down:
 	docker compose down -v
