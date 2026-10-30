@@ -4,11 +4,29 @@
 # both initiates and accepts pgBackRest TLS connections. Private keys never leave
 # the working tree and are gitignored; only this generator is committed, so a
 # clean clone rebuilds an equivalent mesh with `make pki`.
+#
+# Generation is idempotent: a complete PKI is left untouched, so re-running `make up`
+# on a live stack never swaps the CA under running containers and splits the mesh.
+# Set PKI_FORCE=1 to rebuild from scratch, with the stack down.
 set -euo pipefail
 
 PKI_DIR="${PKI_DIR:-pki}"
 HOSTS=(backup-repo pg-primary pg-recovery)
 DAYS=3650
+
+pki_complete() {
+  [ -f "$PKI_DIR/ca/ca.crt" ] && [ -f "$PKI_DIR/ca/ca.key" ] || return 1
+  local h
+  for h in "${HOSTS[@]}"; do
+    [ -f "$PKI_DIR/$h/$h.crt" ] && [ -f "$PKI_DIR/$h/$h.key" ] && [ -f "$PKI_DIR/$h/ca.crt" ] || return 1
+  done
+  return 0
+}
+
+if [ "${PKI_FORCE:-0}" != "1" ] && pki_complete; then
+  echo "PKI already present under $PKI_DIR/ for: ${HOSTS[*]} (set PKI_FORCE=1 to rebuild); leaving it untouched."
+  exit 0
+fi
 
 rm -rf "$PKI_DIR"
 mkdir -p "$PKI_DIR/ca"
