@@ -1,4 +1,4 @@
-.PHONY: up down ps psql logs pki stanza load backup verify info s0 s1 s3
+.PHONY: up down ps psql logs pki stanza load backup verify info s0 s1 s2 s3 s4 s5
 
 ROWS ?= 100
 INTERVAL ?= 0
@@ -34,6 +34,15 @@ s1:
 
 s3:
 	./scripts/scenarios/s3-missing-backup.sh
+
+s2:
+	./scripts/scenarios/s2-missing-wal.sh
+
+s4:
+	./scripts/scenarios/s4-total-loss.sh
+
+s5:
+	./scripts/scenarios/s5-owner-key.sh
 
 down:
 	docker compose down -v
