@@ -3,7 +3,7 @@
 pki:
 	./scripts/gen-pki.sh
 
-up:
+up: pki
 	@test -f .env || cp .env.example .env
 	docker compose up -d --wait
 

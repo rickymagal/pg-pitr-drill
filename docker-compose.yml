@@ -45,7 +45,16 @@ services:
     <<: *pg-image
     pull_policy: never
     hostname: backup-repo
-    command: ["sleep", "infinity"]
+    entrypoint: ["/usr/local/bin/pgbr-init.sh"]
+    command: ["gosu", "postgres", "pgbackrest", "server"]
     volumes:
       - repo-data:/var/lib/pgbackrest
+      - ./pki/backup-repo:/pki:ro
+      - ./config/pgbackrest/backup-repo.conf:/etc/pgbackrest/pgbackrest.conf:ro
+      - ./scripts/pgbr-init.sh:/usr/local/bin/pgbr-init.sh:ro
     networks: [drillnet]
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8432"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
