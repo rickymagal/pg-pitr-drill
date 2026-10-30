@@ -1,4 +1,4 @@
-.PHONY: up down ps psql logs pki stanza load backup verify info s0 s1 s2 s3 s4 s5 s6 s7 s8 s9
+.PHONY: up down ps psql logs pki stanza load backup verify info s0 s1 s2 s3 s4 s5 s6 s7 s8 s9 s10
 
 ROWS ?= 100
 INTERVAL ?= 0
@@ -55,6 +55,9 @@ s8:
 
 s9:
 	./scripts/scenarios/s9-consistency.sh
+
+s10:
+	./scripts/scenarios/s10-alerting.sh
 
 down:
 	docker compose down -v
