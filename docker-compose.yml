@@ -37,6 +37,7 @@ services:
       - ./pki/pg-primary:/pki:ro
       - ./config/pgbackrest/pg-primary.conf:/etc/pgbackrest/pgbackrest.conf:ro
       - ./scripts/pgbr-init.sh:/usr/local/bin/pgbr-init.sh:ro
+      - ./sql:/docker-entrypoint-initdb.d:ro
     networks: [drillnet]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
