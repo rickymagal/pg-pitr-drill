@@ -21,7 +21,7 @@ backup:
 	docker compose exec -u postgres pg-primary pgbackrest --stanza=pitr-drill backup --type=full
 
 verify:
-	docker compose exec -u postgres pg-primary pgbackrest --stanza=pitr-drill verify
+	./scripts/pgbr-verify.sh
 
 info:
 	docker compose exec -u postgres pg-primary pgbackrest --stanza=pitr-drill info
