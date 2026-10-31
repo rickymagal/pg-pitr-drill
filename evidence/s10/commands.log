@@ -1,0 +1,31 @@
+# A detected recovery error raises an alert  (2026-10-31T01:25:29Z)
+## [2026-10-31T01:25:29Z] base backup
+$ docker compose exec -T -u postgres pg-primary pgbackrest --stanza=pitr-drill backup --type=full
+# exit=0
+## [2026-10-31T01:25:33Z] verify (healthy repo)
+$ ./scripts/pgbr-verify.sh
+
+# exit=0
+## [2026-10-31T01:25:34Z] snapshot backup sets
+$ docker compose exec -T -u postgres backup-repo bash -c rm -rf /tmp/s10-sets && mkdir -p /tmp/s10-sets && cp -a /var/lib/pgbackrest/backup/pitr-drill/*F /tmp/s10-sets/
+# exit=0
+## [2026-10-31T01:25:34Z] remove all backup sets
+$ docker compose exec -T -u postgres backup-repo bash -c find /var/lib/pgbackrest/backup/pitr-drill -mindepth 1 -maxdepth 1 -type d -name '*F' -exec rm -rf {} +
+# exit=0
+## [2026-10-31T01:25:35Z] verify (broken repo)
+$ ./scripts/pgbr-verify.sh
+2026-10-31 01:25:35.370 P00   WARN: backup '20261031-012425F' found in backup.info but not in the repository
+2026-10-31 01:25:35.370 P00   WARN: backup '20261031-012430F' found in backup.info but not in the repository
+2026-10-31 01:25:35.370 P00   WARN: backup '20261031-012447F' found in backup.info but not in the repository
+2026-10-31 01:25:35.370 P00   WARN: backup '20261031-012503F' found in backup.info but not in the repository
+2026-10-31 01:25:35.370 P00   WARN: backup '20261031-012517F' found in backup.info but not in the repository
+2026-10-31 01:25:35.370 P00   WARN: backup '20261031-012529F' found in backup.info but not in the repository
+# exit=1
+## [2026-10-31T01:25:35Z] dispatch alert for: verify (broken repo)
+$ ./scripts/alert.sh critical recovery verify (broken repo) failed
+ALERT[critical] recovery: verify (broken repo) failed
+# exit=0
+## [2026-10-31T01:25:35Z] repair: restore backup sets
+$ docker compose exec -T -u postgres backup-repo bash -c cp -a /tmp/s10-sets/*F /var/lib/pgbackrest/backup/pitr-drill/
+# exit=0
+VERDICT error_detected_and_alerted: PASS (a healthy verify raised no alert; the failing verify raised 1 via scripts/alert.sh)

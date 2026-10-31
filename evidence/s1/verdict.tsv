@@ -1,0 +1,1 @@
+wal_corruption	PASS	verify failed on the corrupted segment and passed once it was restored

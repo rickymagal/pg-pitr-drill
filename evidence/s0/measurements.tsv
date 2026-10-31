@@ -1,0 +1,11 @@
+rows_primary_end	70
+t1_target_time	2026-10-31 01:23:21.021283+00
+t1_rows_expected	30
+t1_rows_recovered	30
+t1_post_target_rows	0
+t1_rto_seconds	6
+t2_target_time	2026-10-31 01:23:24.533185+00
+t2_rows_expected	50
+t2_rows_recovered	50
+t2_post_target_rows	0
+t2_rto_seconds	6

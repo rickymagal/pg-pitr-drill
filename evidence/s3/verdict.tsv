@@ -1,0 +1,3 @@
+backup_missing	PASS	missing sets detected (PASS) and repaired (PASS)
+backup_corrupt	PASS	corruption detected as a repository error (PASS) and repaired (PASS)
+backup_expired	PASS	second full set expired by retention to 1 from 5, repository still valid

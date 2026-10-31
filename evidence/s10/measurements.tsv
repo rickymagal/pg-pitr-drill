@@ -1,0 +1,3 @@
+alerts_after_healthy	0
+alerts_after_fault	1
+alerts_raised_by_fault	1

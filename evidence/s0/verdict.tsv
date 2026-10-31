@@ -1,0 +1,2 @@
+pitr_t1	PASS	recovered 30 rows at t1, equal to the 30 committed at or before the target, with none after
+pitr_t2	PASS	recovered 50 rows at t2, equal to the 50 committed at or before the target, with none after

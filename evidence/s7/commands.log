@@ -1,0 +1,42 @@
+# Tenant isolation across customer and project under RLS  (2026-10-31T01:25:01Z)
+## [2026-10-31T01:25:01Z] reset tenant table
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -v ON_ERROR_STOP=1 -c TRUNCATE memory.tenant_record RESTART IDENTITY;
+TRUNCATE TABLE
+# exit=0
+## [2026-10-31T01:25:01Z] write (C1,projA)
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -v ON_ERROR_STOP=1 -c SET ROLE core_app; SET app.customer_id='C1'; SET app.project_id='projA'; INSERT INTO memory.tenant_record(customer_id,project_id,content) VALUES ('C1','projA','c1-a');
+SET
+SET
+SET
+INSERT 0 1
+# exit=0
+## [2026-10-31T01:25:01Z] write (C1,projB)
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -v ON_ERROR_STOP=1 -c SET ROLE core_app; SET app.customer_id='C1'; SET app.project_id='projB'; INSERT INTO memory.tenant_record(customer_id,project_id,content) VALUES ('C1','projB','c1-b');
+SET
+SET
+SET
+INSERT 0 1
+# exit=0
+## [2026-10-31T01:25:01Z] write (C2,projA)
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -v ON_ERROR_STOP=1 -c SET ROLE core_app; SET app.customer_id='C2'; SET app.project_id='projA'; INSERT INTO memory.tenant_record(customer_id,project_id,content) VALUES ('C2','projA','c2-a');
+SET
+SET
+SET
+INSERT 0 1
+# exit=0
+## [2026-10-31T01:25:02Z] C1/projA cannot forge a row for C2/projA (expect fail ~ /row-level security|new row violates/)
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -v ON_ERROR_STOP=1 -c SET ROLE core_app; SET app.customer_id='C1'; SET app.project_id='projA'; INSERT INTO memory.tenant_record(customer_id,project_id,content) VALUES ('C2','projA','forged');
+SET
+SET
+SET
+ERROR:  new row violates row-level security policy for table "tenant_record"
+# exit=1
+## [2026-10-31T01:25:02Z] operator cannot read tenant records (expect fail ~ /permission denied for schema memory/)
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -v ON_ERROR_STOP=1 -c SET ROLE ai_operator; SELECT count(*) FROM memory.tenant_record;
+SET
+ERROR:  permission denied for schema memory
+LINE 1: SET ROLE ai_operator; SELECT count(*) FROM memory.tenant_rec...
+                                                   ^
+# exit=1
+VERDICT tenant_isolation: PASS (a (customer,project) session saw only its own row; no leak across project label or customer, and a cross-tenant forge was refused)
+VERDICT operator_isolation: PASS (ai_operator cannot read tenant records)

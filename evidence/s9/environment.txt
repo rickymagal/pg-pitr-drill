@@ -1,0 +1,5 @@
+utc=2026-10-31T01:25:17Z
+git_commit=c0dc32a8a2734c8d03b9bb3a727f061c5cccbc3e
+git_describe=c0dc32a-dirty
+image_id=sha256:86bf518ca596dd7462226cc09fb29a6484207ac1e0e5cf77d4d16a52bf7e85c0
+pgbackrest=pgBackRest 2.60.0

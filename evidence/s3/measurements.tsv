@@ -1,0 +1,4 @@
+backup_sets	/var/lib/pgbackrest/backup/pitr-drill/20261031-012313F /var/lib/pgbackrest/backup/pitr-drill/20261031-012341F /var/lib/pgbackrest/backup/pitr-drill/20261031-012408F /var/lib/pgbackrest/backup/pitr-drill/20261031-012416F 
+corrupt_victim	/var/lib/pgbackrest/backup/pitr-drill/20261031-012416F/pg_data/backup_label.gz
+full_sets_before_expire	5
+full_sets_after_expire	1

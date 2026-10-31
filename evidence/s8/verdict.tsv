@@ -1,0 +1,2 @@
+quarantine_survives_restore	PASS	the quarantined record and its audit evidence survived the restore with state intact
+supersession_lineage	PASS	one writer superseded the record (w1=1), the other lost the race (w2=0) and withdrew; after restore a single current version remains, linked from the superseded original

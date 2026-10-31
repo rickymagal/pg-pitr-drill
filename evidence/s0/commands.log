@@ -1,0 +1,452 @@
+# Timed point-in-time recovery to two selected timestamps  (2026-10-31T01:23:13Z)
+## [2026-10-31T01:23:13Z] base backup
+$ docker compose exec -T -u postgres pg-primary pgbackrest --stanza=pitr-drill backup --type=full
+# exit=0
+## [2026-10-31T01:23:17Z] load before target 1
+$ ./scripts/load-gen.sh 30 0.05
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+inserted 30 rows (interval=0.05s)
+# exit=0
+## [2026-10-31T01:23:22Z] load before target 2
+$ ./scripts/load-gen.sh 20 0.05
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+inserted 20 rows (interval=0.05s)
+# exit=0
+## [2026-10-31T01:23:25Z] load after both targets
+$ ./scripts/load-gen.sh 20 0.05
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+inserted 20 rows (interval=0.05s)
+# exit=0
+## [2026-10-31T01:23:26Z] switch wal
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -c SELECT pg_switch_wal();
+ pg_switch_wal 
+---------------
+ 0/5010AA0
+(1 row)
+
+# exit=0
+## [2026-10-31T01:23:27Z] stop stale recovery server (t1)
+$ docker compose exec -T -u postgres pg-recovery bash -c pg_ctl -D /var/lib/postgresql/data stop -m immediate -w 2>/dev/null || true
+# exit=0
+## [2026-10-31T01:23:27Z] clean recovery pgdata (t1)
+$ docker compose exec -T -u root pg-recovery bash -c rm -rf /var/lib/postgresql/data/* && chown postgres:postgres /var/lib/postgresql/data
+# exit=0
+## [2026-10-31T01:23:27Z] pitr restore to t1
+$ docker compose exec -T -u postgres pg-recovery pgbackrest --stanza=pitr-drill --delta --type=time --target=2026-10-31 01:23:21.021283+00 --target-action=promote restore
+2026-10-31 01:23:27.673 P00   WARN: --delta or --force specified but unable to find 'PG_VERSION' or 'backup.manifest' in '/var/lib/postgresql/data' to confirm that this is a valid $PGDATA directory. --delta and --force have been disabled and if any files exist in the destination directories the restore will be aborted.
+# exit=0
+## [2026-10-31T01:23:30Z] start recovered server (t1)
+$ docker compose exec -T -u postgres pg-recovery pg_ctl -D /var/lib/postgresql/data -w -t 300 start
+waiting for server to start....2026-10-31 01:23:30.401 UTC [42] LOG:  starting PostgreSQL 17.11 (Debian 17.11-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+2026-10-31 01:23:30.401 UTC [42] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-10-31 01:23:30.401 UTC [42] LOG:  listening on IPv6 address "::", port 5432
+2026-10-31 01:23:30.404 UTC [42] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-31 01:23:30.407 UTC [45] LOG:  database system was interrupted; last known up at 2026-10-31 01:23:14 UTC
+.2026-10-31 01:23:31.588 UTC [45] LOG:  starting backup recovery with redo LSN 0/3000028, checkpoint LSN 0/3000080, on timeline ID 1
+2026-10-31 01:23:31.627 UTC [45] LOG:  restored log file "000000010000000000000003" from archive
+2026-10-31 01:23:31.633 UTC [45] LOG:  starting point-in-time recovery to 2026-10-31 01:23:21.021283+00
+2026-10-31 01:23:31.636 UTC [45] LOG:  redo starts at 0/3000028
+2026-10-31 01:23:31.673 UTC [45] LOG:  restored log file "000000010000000000000004" from archive
+2026-10-31 01:23:31.720 UTC [45] LOG:  restored log file "000000010000000000000005" from archive
+2026-10-31 01:23:31.727 UTC [45] LOG:  completed backup recovery with redo LSN 0/3000028 and end LSN 0/4000050
+2026-10-31 01:23:31.727 UTC [45] LOG:  consistent recovery state reached at 0/4000050
+2026-10-31 01:23:31.727 UTC [42] LOG:  database system is ready to accept read-only connections
+2026-10-31 01:23:31.728 UTC [45] LOG:  recovery stopping before commit of transaction 797, time 2026-10-31 01:23:22.166327+00
+2026-10-31 01:23:31.728 UTC [45] LOG:  redo done at 0/5001938 system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.09 s
+2026-10-31 01:23:31.728 UTC [45] LOG:  last completed transaction was at log time 2026-10-31 01:23:19.650414+00
+2026-10-31 01:23:31.754 UTC [45] LOG:  selected new timeline ID: 2
+ done
+server started
+2026-10-31 01:23:31.792 UTC [45] LOG:  archive recovery complete
+2026-10-31 01:23:31.794 UTC [43] LOG:  checkpoint starting: end-of-recovery immediate wait
+2026-10-31 01:23:31.815 UTC [43] LOG:  checkpoint complete: wrote 7 buffers (0.0%); 0 WAL file(s) added, 0 removed, 2 recycled; write=0.002 s, sync=0.006 s, total=0.023 s; sync files=5, longest=0.002 s, average=0.002 s; distance=32774 kB, estimate=32774 kB; lsn=0/5001938, redo lsn=0/5001938
+2026-10-31 01:23:31.821 UTC [42] LOG:  database system is ready to accept connections
+# exit=0
+VERDICT pitr_t1: PASS (recovered 30 rows at t1, equal to the 30 committed at or before the target, with none after)
+## [2026-10-31T01:23:34Z] stop stale recovery server (t2)
+$ docker compose exec -T -u postgres pg-recovery bash -c pg_ctl -D /var/lib/postgresql/data stop -m immediate -w 2>/dev/null || true
+waiting for server to shut down.... done
+server stopped
+# exit=0
+## [2026-10-31T01:23:34Z] clean recovery pgdata (t2)
+$ docker compose exec -T -u root pg-recovery bash -c rm -rf /var/lib/postgresql/data/* && chown postgres:postgres /var/lib/postgresql/data
+# exit=0
+## [2026-10-31T01:23:34Z] pitr restore to t2
+$ docker compose exec -T -u postgres pg-recovery pgbackrest --stanza=pitr-drill --delta --type=time --target=2026-10-31 01:23:24.533185+00 --target-action=promote restore
+2026-10-31 01:23:34.599 P00   WARN: --delta or --force specified but unable to find 'PG_VERSION' or 'backup.manifest' in '/var/lib/postgresql/data' to confirm that this is a valid $PGDATA directory. --delta and --force have been disabled and if any files exist in the destination directories the restore will be aborted.
+# exit=0
+## [2026-10-31T01:23:37Z] start recovered server (t2)
+$ docker compose exec -T -u postgres pg-recovery pg_ctl -D /var/lib/postgresql/data -w -t 300 start
+waiting for server to start....2026-10-31 01:23:37.263 UTC [104] LOG:  starting PostgreSQL 17.11 (Debian 17.11-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+2026-10-31 01:23:37.263 UTC [104] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-10-31 01:23:37.263 UTC [104] LOG:  listening on IPv6 address "::", port 5432
+2026-10-31 01:23:37.266 UTC [104] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-31 01:23:37.270 UTC [107] LOG:  database system was interrupted; last known up at 2026-10-31 01:23:14 UTC
+.2026-10-31 01:23:38.522 UTC [107] LOG:  starting backup recovery with redo LSN 0/3000028, checkpoint LSN 0/3000080, on timeline ID 1
+2026-10-31 01:23:38.561 UTC [107] LOG:  restored log file "000000010000000000000003" from archive
+2026-10-31 01:23:38.566 UTC [107] LOG:  starting point-in-time recovery to 2026-10-31 01:23:24.533185+00
+2026-10-31 01:23:38.570 UTC [107] LOG:  redo starts at 0/3000028
+2026-10-31 01:23:38.610 UTC [107] LOG:  restored log file "000000010000000000000004" from archive
+2026-10-31 01:23:38.658 UTC [107] LOG:  restored log file "000000010000000000000005" from archive
+2026-10-31 01:23:38.664 UTC [107] LOG:  completed backup recovery with redo LSN 0/3000028 and end LSN 0/4000050
+2026-10-31 01:23:38.664 UTC [107] LOG:  consistent recovery state reached at 0/4000050
+2026-10-31 01:23:38.664 UTC [104] LOG:  database system is ready to accept read-only connections
+2026-10-31 01:23:38.664 UTC [107] LOG:  recovery stopping before commit of transaction 817, time 2026-10-31 01:23:25.695303+00
+2026-10-31 01:23:38.664 UTC [107] LOG:  redo done at 0/5002958 system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.09 s
+2026-10-31 01:23:38.664 UTC [107] LOG:  last completed transaction was at log time 2026-10-31 01:23:23.181096+00
+2026-10-31 01:23:38.686 UTC [107] LOG:  selected new timeline ID: 2
+2026-10-31 01:23:38.734 UTC [107] LOG:  archive recovery complete
+2026-10-31 01:23:38.736 UTC [105] LOG:  checkpoint starting: end-of-recovery immediate wait
+ done
+server started
+2026-10-31 01:23:38.759 UTC [105] LOG:  checkpoint complete: wrote 7 buffers (0.0%); 0 WAL file(s) added, 0 removed, 2 recycled; write=0.002 s, sync=0.006 s, total=0.025 s; sync files=5, longest=0.002 s, average=0.002 s; distance=32778 kB, estimate=32778 kB; lsn=0/5002958, redo lsn=0/5002958
+2026-10-31 01:23:38.765 UTC [104] LOG:  database system is ready to accept connections
+# exit=0
+VERDICT pitr_t2: PASS (recovered 50 rows at t2, equal to the 50 committed at or before the target, with none after)

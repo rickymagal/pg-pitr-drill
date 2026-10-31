@@ -1,0 +1,51 @@
+# Unauthorized actions and connections are denied  (2026-10-31T01:24:59Z)
+## [2026-10-31T01:24:59Z] core_app cannot write authority (expect fail ~ /permission denied for table policy/)
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -v ON_ERROR_STOP=1 -c SET ROLE core_app; INSERT INTO authority.policy(name,decided_by) VALUES ('x','y');
+ERROR:  permission denied for table policy
+SET
+# exit=1
+## [2026-10-31T01:24:59Z] operator cannot read memory (expect fail ~ /permission denied for schema memory/)
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -v ON_ERROR_STOP=1 -c SET ROLE ai_operator; SELECT 1 FROM memory.record;
+ERROR:  permission denied for schema memory
+LINE 1: SET ROLE ai_operator; SELECT 1 FROM memory.record;
+                                            ^
+SET
+# exit=1
+## [2026-10-31T01:24:59Z] core_app can write memory
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -v ON_ERROR_STOP=1 -c SET ROLE core_app; INSERT INTO memory.record(content) VALUES ('ok');
+SET
+INSERT 0 1
+# exit=0
+VERDICT protected_write_denied: PASS (authority-write and operator-read denied for the right reason; the authorized write succeeded)
+## [2026-10-31T01:25:00Z] operator cannot open a session (expect fail ~ /not permitted to log in/)
+$ SESSION ai_operator
+psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  role "ai_operator" is not permitted to log in
+# exit=2
+VERDICT unauthorized_connection_denied: PASS (ai_operator (NOLOGIN) cannot open a direct session; it reaches data only through the Core)
+## [2026-10-31T01:25:00Z] create contractor login
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -v ON_ERROR_STOP=1 -c DROP ROLE IF EXISTS drill_contractor; CREATE ROLE drill_contractor LOGIN;
+NOTICE:  role "drill_contractor" does not exist, skipping
+DROP ROLE
+CREATE ROLE
+# exit=0
+## [2026-10-31T01:25:00Z] contractor can connect
+$ SESSION drill_contractor
+ ?column? 
+----------
+        1
+(1 row)
+
+# exit=0
+## [2026-10-31T01:25:00Z] revoke contractor access
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -v ON_ERROR_STOP=1 -c ALTER ROLE drill_contractor NOLOGIN;
+ALTER ROLE
+# exit=0
+## [2026-10-31T01:25:00Z] revoked contractor cannot connect (expect fail ~ /not permitted to log in/)
+$ SESSION drill_contractor
+psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  role "drill_contractor" is not permitted to log in
+# exit=2
+## [2026-10-31T01:25:00Z] drop contractor
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -v ON_ERROR_STOP=1 -c DROP ROLE IF EXISTS drill_contractor;
+DROP ROLE
+# exit=0
+VERDICT stolen_credential_denied: PASS (a working contractor credential, revoked after exposure, could no longer open a session)

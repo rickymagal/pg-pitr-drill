@@ -1,0 +1,3 @@
+protected_write_denied	PASS	authority-write and operator-read denied for the right reason; the authorized write succeeded
+unauthorized_connection_denied	PASS	ai_operator (NOLOGIN) cannot open a direct session; it reaches data only through the Core
+stolen_credential_denied	PASS	a working contractor credential, revoked after exposure, could no longer open a session

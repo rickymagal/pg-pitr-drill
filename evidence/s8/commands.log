@@ -1,0 +1,72 @@
+# Quarantine and supersession lineage survive a restore  (2026-10-31T01:25:02Z)
+## [2026-10-31T01:25:02Z] doc-2 v1 becomes current
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -v ON_ERROR_STOP=1 -c INSERT INTO memory.record(content,source_id,state) VALUES ('doc2-v1','doc-2','current');
+INSERT 0 1
+# exit=0
+## [2026-10-31T01:25:02Z] writer A publishes a version
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -v ON_ERROR_STOP=1 -c INSERT INTO memory.record(content,source_id,state) VALUES ('doc2-v2-A','doc-2','current');
+INSERT 0 1
+# exit=0
+## [2026-10-31T01:25:03Z] writer B publishes a version
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -v ON_ERROR_STOP=1 -c INSERT INTO memory.record(content,source_id,state) VALUES ('doc2-v2-B','doc-2','current');
+INSERT 0 1
+# exit=0
+## [2026-10-31T01:25:03Z] writer B loses the race, withdraws its version
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -v ON_ERROR_STOP=1 -c UPDATE memory.record SET state='rejected' WHERE content='doc2-v2-B' AND source_id='doc-2';
+UPDATE 1
+# exit=0
+## [2026-10-31T01:25:03Z] quarantine a poisoned record
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -v ON_ERROR_STOP=1 -c INSERT INTO memory.record(content, state) VALUES ('poisoned-1','quarantined'); INSERT INTO memory.record(content, state) VALUES ('clean-1','verified'); INSERT INTO audit.event(actor,action,detail) VALUES ('core','quarantine','poisoned-1');
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+# exit=0
+## [2026-10-31T01:25:03Z] backup
+$ docker compose exec -T -u postgres pg-primary pgbackrest --stanza=pitr-drill backup --type=full
+# exit=0
+## [2026-10-31T01:25:09Z] archive wal
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -c SELECT pg_switch_wal();
+ pg_switch_wal 
+---------------
+ 0/18000000
+(1 row)
+
+# exit=0
+## [2026-10-31T01:25:10Z] stop stale recovery server
+$ docker compose exec -T -u postgres pg-recovery bash -c pg_ctl -D /var/lib/postgresql/data stop -m immediate -w 2>/dev/null || true
+waiting for server to shut down.... done
+server stopped
+# exit=0
+## [2026-10-31T01:25:10Z] clean recovery pgdata
+$ docker compose exec -T -u root pg-recovery bash -c rm -rf /var/lib/postgresql/data/* && chown postgres:postgres /var/lib/postgresql/data
+# exit=0
+## [2026-10-31T01:25:10Z] restore onto clean host
+$ docker compose exec -T -u postgres pg-recovery pgbackrest --stanza=pitr-drill --delta restore
+2026-10-31 01:25:10.571 P00   WARN: --delta or --force specified but unable to find 'PG_VERSION' or 'backup.manifest' in '/var/lib/postgresql/data' to confirm that this is a valid $PGDATA directory. --delta and --force have been disabled and if any files exist in the destination directories the restore will be aborted.
+# exit=0
+## [2026-10-31T01:25:13Z] start recovered server
+$ docker compose exec -T -u postgres pg-recovery pg_ctl -D /var/lib/postgresql/data -w -t 300 start
+waiting for server to start....2026-10-31 01:25:13.289 UTC [306] LOG:  starting PostgreSQL 17.11 (Debian 17.11-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+2026-10-31 01:25:13.289 UTC [306] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-10-31 01:25:13.289 UTC [306] LOG:  listening on IPv6 address "::", port 5432
+2026-10-31 01:25:13.293 UTC [306] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-31 01:25:13.297 UTC [309] LOG:  database system was interrupted; last known up at 2026-10-31 01:25:06 UTC
+.2026-10-31 01:25:14.565 UTC [309] LOG:  starting backup recovery with redo LSN 0/17000028, checkpoint LSN 0/17000080, on timeline ID 1
+2026-10-31 01:25:14.609 UTC [309] LOG:  restored log file "000000010000000000000017" from archive
+2026-10-31 01:25:14.614 UTC [309] LOG:  starting archive recovery
+2026-10-31 01:25:14.617 UTC [309] LOG:  redo starts at 0/17000028
+2026-10-31 01:25:14.644 UTC [309] LOG:  completed backup recovery with redo LSN 0/17000028 and end LSN 0/17000120
+2026-10-31 01:25:14.644 UTC [309] LOG:  consistent recovery state reached at 0/17000120
+2026-10-31 01:25:14.644 UTC [306] LOG:  database system is ready to accept read-only connections
+ done
+server started
+2026-10-31 01:25:14.670 UTC [309] LOG:  redo done at 0/17000120 system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.05 s
+2026-10-31 01:25:14.709 UTC [309] LOG:  restored log file "000000010000000000000017" from archive
+2026-10-31 01:25:14.737 UTC [309] LOG:  selected new timeline ID: 2
+2026-10-31 01:25:14.786 UTC [309] LOG:  archive recovery complete
+2026-10-31 01:25:14.788 UTC [307] LOG:  checkpoint starting: end-of-recovery immediate wait
+2026-10-31 01:25:14.806 UTC [307] LOG:  checkpoint complete: wrote 3 buffers (0.0%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.002 s, sync=0.004 s, total=0.019 s; sync files=2, longest=0.002 s, average=0.002 s; distance=16384 kB, estimate=16384 kB; lsn=0/18000028, redo lsn=0/18000028
+2026-10-31 01:25:14.811 UTC [306] LOG:  database system is ready to accept connections
+# exit=0
+VERDICT quarantine_survives_restore: PASS (the quarantined record and its audit evidence survived the restore with state intact)
+VERDICT supersession_lineage: PASS (one writer superseded the record (w1=1), the other lost the race (w2=0) and withdrew; after restore a single current version remains, linked from the superseded original)

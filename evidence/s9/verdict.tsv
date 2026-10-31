@@ -1,0 +1,1 @@
+recovered_consistency	PASS	pg_amcheck found no heap or btree corruption in the recovered database (7 application tables)

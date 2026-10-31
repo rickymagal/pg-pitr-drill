@@ -1,0 +1,8 @@
+archive_floor_segment	000000010000000000000012
+archive_floor_confirmed	000000010000000000000012
+rows_archived	150
+rows_before_loss	160
+rto_seconds	7
+rows_recovered	150
+rows_lost	10
+rpo_seconds	0.874

@@ -1,0 +1,1 @@
+error_detected_and_alerted	PASS	a healthy verify raised no alert; the failing verify raised 1 via scripts/alert.sh

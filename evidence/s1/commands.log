@@ -1,0 +1,141 @@
+# A corrupted WAL archive is detected  (2026-10-31T01:23:41Z)
+## [2026-10-31T01:23:41Z] base backup
+$ docker compose exec -T -u postgres pg-primary pgbackrest --stanza=pitr-drill backup --type=full
+# exit=0
+## [2026-10-31T01:23:50Z] load
+$ ./scripts/load-gen.sh 20 0.05
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+inserted 20 rows (interval=0.05s)
+# exit=0
+## [2026-10-31T01:23:51Z] archive wal
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -c SELECT pg_switch_wal();
+ pg_switch_wal 
+---------------
+ 0/80028E0
+(1 row)
+
+# exit=0
+## [2026-10-31T01:23:51Z] verify baseline
+$ ./scripts/pgbr-verify.sh
+
+# exit=0
+## [2026-10-31T01:23:51Z] snapshot pristine segment
+$ docker compose exec -T -u postgres backup-repo bash -c cp '/var/lib/pgbackrest/archive/pitr-drill/17-1/0000000100000000/000000010000000000000008-8da5b5863b8a0b22464d364954f1dfd1c07f2c5a.gz' /tmp/s1-wal.orig
+# exit=0
+## [2026-10-31T01:23:52Z] corrupt one archived segment
+$ docker compose exec -T -u postgres backup-repo bash -c dd if=/dev/urandom of='/var/lib/pgbackrest/archive/pitr-drill/17-1/0000000100000000/000000010000000000000008-8da5b5863b8a0b22464d364954f1dfd1c07f2c5a.gz' bs=1 count=16 seek=16 conv=notrunc status=none
+# exit=0
+## [2026-10-31T01:24:07Z] verify detects corruption (expect fail ~ /status: error|invalid result|FormatError|data error/)
+$ ./scripts/pgbr-verify.sh
+stanza: pitr-drill
+status: error
+  archiveId: 17-1, total WAL checked: 8, total valid WAL: 7
+    other: 1
+# exit=1
+## [2026-10-31T01:24:07Z] repair: restore pristine segment
+$ docker compose exec -T -u postgres backup-repo bash -c mv /tmp/s1-wal.orig '/var/lib/pgbackrest/archive/pitr-drill/17-1/0000000100000000/000000010000000000000008-8da5b5863b8a0b22464d364954f1dfd1c07f2c5a.gz'
+# exit=0
+## [2026-10-31T01:24:07Z] verify after repair
+$ ./scripts/pgbr-verify.sh
+
+# exit=0
+VERDICT wal_corruption: PASS (verify failed on the corrupted segment and passed once it was restored)

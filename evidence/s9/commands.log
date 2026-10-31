@@ -1,0 +1,358 @@
+# The recovered database passes a full consistency check  (2026-10-31T01:25:17Z)
+## [2026-10-31T01:25:17Z] base backup
+$ docker compose exec -T -u postgres pg-primary pgbackrest --stanza=pitr-drill backup --type=full
+# exit=0
+## [2026-10-31T01:25:20Z] load
+$ ./scripts/load-gen.sh 60 0.02
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+inserted 60 rows (interval=0.02s)
+# exit=0
+## [2026-10-31T01:25:22Z] archive wal
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -c SELECT pg_switch_wal();
+ pg_switch_wal 
+---------------
+ 0/1A005150
+(1 row)
+
+# exit=0
+## [2026-10-31T01:25:22Z] stop stale recovery server
+$ docker compose exec -T -u postgres pg-recovery bash -c pg_ctl -D /var/lib/postgresql/data stop -m immediate -w 2>/dev/null || true
+waiting for server to shut down.... done
+server stopped
+# exit=0
+## [2026-10-31T01:25:22Z] clean recovery pgdata
+$ docker compose exec -T -u root pg-recovery bash -c rm -rf /var/lib/postgresql/data/* && chown postgres:postgres /var/lib/postgresql/data
+# exit=0
+## [2026-10-31T01:25:23Z] restore latest onto clean host
+$ docker compose exec -T -u postgres pg-recovery pgbackrest --stanza=pitr-drill --delta restore
+2026-10-31 01:25:23.159 P00   WARN: --delta or --force specified but unable to find 'PG_VERSION' or 'backup.manifest' in '/var/lib/postgresql/data' to confirm that this is a valid $PGDATA directory. --delta and --force have been disabled and if any files exist in the destination directories the restore will be aborted.
+# exit=0
+## [2026-10-31T01:25:25Z] start recovered server
+$ docker compose exec -T -u postgres pg-recovery pg_ctl -D /var/lib/postgresql/data -w -t 300 start
+waiting for server to start....2026-10-31 01:25:25.938 UTC [398] LOG:  starting PostgreSQL 17.11 (Debian 17.11-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+2026-10-31 01:25:25.938 UTC [398] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-10-31 01:25:25.938 UTC [398] LOG:  listening on IPv6 address "::", port 5432
+2026-10-31 01:25:25.940 UTC [398] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-31 01:25:25.946 UTC [401] LOG:  database system was interrupted; last known up at 2026-10-31 01:25:17 UTC
+.2026-10-31 01:25:27.193 UTC [401] LOG:  starting backup recovery with redo LSN 0/19000028, checkpoint LSN 0/19000080, on timeline ID 1
+2026-10-31 01:25:27.228 UTC [401] LOG:  restored log file "000000010000000000000019" from archive
+2026-10-31 01:25:27.233 UTC [401] LOG:  starting archive recovery
+2026-10-31 01:25:27.236 UTC [401] LOG:  redo starts at 0/19000028
+2026-10-31 01:25:27.262 UTC [401] LOG:  restored log file "00000001000000000000001A" from archive
+2026-10-31 01:25:27.270 UTC [401] LOG:  completed backup recovery with redo LSN 0/19000028 and end LSN 0/19000120
+2026-10-31 01:25:27.270 UTC [401] LOG:  consistent recovery state reached at 0/19000120
+2026-10-31 01:25:27.270 UTC [398] LOG:  database system is ready to accept read-only connections
+ done
+server started
+2026-10-31 01:25:27.307 UTC [401] LOG:  redo done at 0/1A005138 system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.07 s
+2026-10-31 01:25:27.307 UTC [401] LOG:  last completed transaction was at log time 2026-10-31 01:25:22.502289+00
+2026-10-31 01:25:27.344 UTC [401] LOG:  restored log file "00000001000000000000001A" from archive
+2026-10-31 01:25:27.372 UTC [401] LOG:  selected new timeline ID: 2
+2026-10-31 01:25:27.418 UTC [401] LOG:  archive recovery complete
+2026-10-31 01:25:27.420 UTC [399] LOG:  checkpoint starting: end-of-recovery immediate wait
+2026-10-31 01:25:27.443 UTC [399] LOG:  checkpoint complete: wrote 8 buffers (0.0%); 0 WAL file(s) added, 0 removed, 2 recycled; write=0.002 s, sync=0.008 s, total=0.026 s; sync files=6, longest=0.002 s, average=0.002 s; distance=32768 kB, estimate=32768 kB; lsn=0/1B000028, redo lsn=0/1B000028
+2026-10-31 01:25:27.450 UTC [398] LOG:  database system is ready to accept connections
+# exit=0
+## [2026-10-31T01:25:29Z] pg_amcheck heap+index on recovered db
+$ docker compose exec -T -u postgres pg-recovery pg_amcheck -U postgres -d pitr_drill --install-missing --heapallindexed
+# exit=0
+VERDICT recovered_consistency: PASS (pg_amcheck found no heap or btree corruption in the recovered database (7 application tables))

@@ -1,0 +1,2 @@
+tenant_isolation	PASS	a (customer,project) session saw only its own row; no leak across project label or customer, and a cross-tenant forge was refused
+operator_isolation	PASS	ai_operator cannot read tenant records

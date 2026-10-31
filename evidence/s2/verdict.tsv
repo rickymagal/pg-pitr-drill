@@ -1,0 +1,3 @@
+wal_missing	PASS	archive-get failed on the absent segment (PASS) and retrieved it after repair (PASS)
+wal_corrupt	PASS	archive-get refused the corrupted segment for a content reason (PASS) and retrieved it after repair (PASS)
+wal_unusable	PASS	archive-get refused the zero-length segment (PASS) and retrieved it after repair (PASS)

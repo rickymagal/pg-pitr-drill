@@ -1,0 +1,58 @@
+# Missing, corrupted, and expired backups are handled  (2026-10-31T01:24:16Z)
+## [2026-10-31T01:24:16Z] base backup
+$ docker compose exec -T -u postgres pg-primary pgbackrest --stanza=pitr-drill backup --type=full
+# exit=0
+## [2026-10-31T01:24:20Z] verify baseline
+$ ./scripts/pgbr-verify.sh
+
+# exit=0
+## [2026-10-31T01:24:21Z] snapshot backup sets
+$ docker compose exec -T -u postgres backup-repo bash -c rm -rf /tmp/s3-sets && mkdir -p /tmp/s3-sets && cp -a /var/lib/pgbackrest/backup/pitr-drill/*F /tmp/s3-sets/
+# exit=0
+## [2026-10-31T01:24:21Z] remove all backup sets
+$ docker compose exec -T -u postgres backup-repo bash -c find /var/lib/pgbackrest/backup/pitr-drill -mindepth 1 -maxdepth 1 -type d -name '*F' -exec rm -rf {} +
+# exit=0
+## [2026-10-31T01:24:22Z] verify detects missing backup (expect fail ~ /not in the repository|status: error/)
+$ ./scripts/pgbr-verify.sh
+2026-10-31 01:24:22.218 P00   WARN: backup '20261031-012313F' found in backup.info but not in the repository
+2026-10-31 01:24:22.218 P00   WARN: backup '20261031-012341F' found in backup.info but not in the repository
+2026-10-31 01:24:22.218 P00   WARN: backup '20261031-012408F' found in backup.info but not in the repository
+2026-10-31 01:24:22.218 P00   WARN: backup '20261031-012416F' found in backup.info but not in the repository
+# exit=1
+## [2026-10-31T01:24:22Z] repair: restore sets (missing)
+$ docker compose exec -T -u postgres backup-repo bash -c cp -a /tmp/s3-sets/*F /var/lib/pgbackrest/backup/pitr-drill/
+# exit=0
+## [2026-10-31T01:24:22Z] verify after repair (missing)
+$ ./scripts/pgbr-verify.sh
+
+# exit=0
+## [2026-10-31T01:24:23Z] corrupt a stored backup file
+$ docker compose exec -T -u postgres backup-repo bash -c printf 'CORRUPT' >> '/var/lib/pgbackrest/backup/pitr-drill/20261031-012416F/pg_data/backup_label.gz'
+# exit=0
+## [2026-10-31T01:24:24Z] verify detects corruption (expect fail ~ /status: error/)
+$ ./scripts/pgbr-verify.sh
+stanza: pitr-drill
+status: error
+  backup: 20261031-012416F, status: invalid, total files checked: 1298, total valid files: 1297
+    checksum invalid: 1
+# exit=1
+## [2026-10-31T01:24:24Z] repair: restore sets (corrupt)
+$ docker compose exec -T -u postgres backup-repo bash -c rm -rf /var/lib/pgbackrest/backup/pitr-drill/*F && cp -a /tmp/s3-sets/*F /var/lib/pgbackrest/backup/pitr-drill/
+# exit=0
+## [2026-10-31T01:24:24Z] verify after repair (corrupt)
+$ ./scripts/pgbr-verify.sh
+
+# exit=0
+## [2026-10-31T01:24:25Z] second full backup
+$ docker compose exec -T -u postgres pg-primary pgbackrest --stanza=pitr-drill backup --type=full
+# exit=0
+## [2026-10-31T01:24:28Z] expire to one full by count
+$ docker compose exec -T -u postgres pg-primary pgbackrest --stanza=pitr-drill expire --repo1-retention-full-type=count --repo1-retention-full=1
+# exit=0
+## [2026-10-31T01:24:29Z] verify valid after expire
+$ ./scripts/pgbr-verify.sh
+
+# exit=0
+VERDICT backup_missing: PASS (missing sets detected (PASS) and repaired (PASS))
+VERDICT backup_corrupt: PASS (corruption detected as a repository error (PASS) and repaired (PASS))
+VERDICT backup_expired: PASS (second full set expired by retention to 1 from 5, repository still valid)

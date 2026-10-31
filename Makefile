@@ -1,4 +1,4 @@
-.PHONY: up down ps psql logs pki stanza load backup verify info s0 s1 s2 s3 s4 s5 s6 s7 s8 s9 s10
+.PHONY: up down ps psql logs pki stanza load backup verify info drill report s0 s1 s2 s3 s4 s5 s6 s7 s8 s9 s10
 
 ROWS ?= 100
 INTERVAL ?= 0
@@ -58,6 +58,12 @@ s9:
 
 s10:
 	./scripts/scenarios/s10-alerting.sh
+
+drill:
+	./scripts/drill.sh
+
+report:
+	python3 scripts/report.py
 
 down:
 	docker compose down -v

@@ -1,0 +1,2 @@
+total_loss_recovery	PASS	clean host recovered 150 rows, all 150 durably-archived rows intact, in 7s
+measured_rpo	PASS	RPO = 0.874s / 10 rows: writes in the unarchived segment at host loss; no durably-archived data lost

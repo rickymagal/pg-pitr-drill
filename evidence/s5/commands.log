@@ -1,0 +1,170 @@
+# Recovery needs the owner-controlled key after revocation  (2026-10-31T01:24:47Z)
+## [2026-10-31T01:24:47Z] base backup
+$ docker compose exec -T -u postgres pg-primary pgbackrest --stanza=pitr-drill backup --type=full
+# exit=0
+## [2026-10-31T01:24:50Z] load
+$ ./scripts/load-gen.sh 20 0.05
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+inserted 20 rows (interval=0.05s)
+# exit=0
+## [2026-10-31T01:24:52Z] archive wal
+$ docker compose exec -T -u postgres pg-primary psql -U postgres -d pitr_drill -c SELECT pg_switch_wal();
+ pg_switch_wal 
+---------------
+ 0/150027F0
+(1 row)
+
+# exit=0
+## [2026-10-31T01:24:52Z] stop stale recovery server
+$ docker compose exec -T -u postgres pg-recovery bash -c pg_ctl -D /var/lib/postgresql/data stop -m immediate -w 2>/dev/null || true
+waiting for server to shut down.... done
+server stopped
+# exit=0
+## [2026-10-31T01:24:52Z] clean recovery pgdata
+$ clean_rec
+# exit=0
+## [2026-10-31T01:24:52Z] restore without the owner key fails (expect fail ~ /CryptoError|no backup set found/)
+$ docker compose exec -T -e PGBACKREST_REPO1_CIPHER_PASS=wrong-revoked-key -u postgres pg-recovery pgbackrest --stanza=pitr-drill --delta restore
+2026-10-31 01:24:52.804 P00   WARN: --delta or --force specified but unable to find 'PG_VERSION' or 'backup.manifest' in '/var/lib/postgresql/data' to confirm that this is a valid $PGDATA directory. --delta and --force have been disabled and if any files exist in the destination directories the restore will be aborted.
+2026-10-31 01:24:52.823 P00   WARN: repo1: [CryptoError] unable to load info file '/var/lib/pgbackrest/backup/pitr-drill/backup.info' or '/var/lib/pgbackrest/backup/pitr-drill/backup.info.copy':
+                                    CryptoError: raised from remote-0 tls protocol on 'backup-repo': unable to flush
+                                    HINT: is or was the repo encrypted?
+                                    CryptoError: raised from remote-0 tls protocol on 'backup-repo': unable to flush
+                                    HINT: is or was the repo encrypted?
+                                    HINT: backup.info cannot be opened and is required to perform a backup.
+                                    HINT: has a stanza-create been performed?
+2026-10-31 01:24:52.823 P00  ERROR: [075]: no backup set found to restore
+# exit=75
+## [2026-10-31T01:24:52Z] clean recovery pgdata again
+$ clean_rec
+# exit=0
+## [2026-10-31T01:24:52Z] restore with the owner key
+$ docker compose exec -T -u postgres pg-recovery pgbackrest --stanza=pitr-drill --delta restore
+2026-10-31 01:24:53.073 P00   WARN: --delta or --force specified but unable to find 'PG_VERSION' or 'backup.manifest' in '/var/lib/postgresql/data' to confirm that this is a valid $PGDATA directory. --delta and --force have been disabled and if any files exist in the destination directories the restore will be aborted.
+# exit=0
+## [2026-10-31T01:24:55Z] start recovered server
+$ docker compose exec -T -u postgres pg-recovery pg_ctl -D /var/lib/postgresql/data -w -t 300 start
+waiting for server to start....2026-10-31 01:24:55.896 UTC [248] LOG:  starting PostgreSQL 17.11 (Debian 17.11-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+2026-10-31 01:24:55.896 UTC [248] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-10-31 01:24:55.896 UTC [248] LOG:  listening on IPv6 address "::", port 5432
+2026-10-31 01:24:55.899 UTC [248] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-31 01:24:55.904 UTC [251] LOG:  database system was interrupted; last known up at 2026-10-31 01:24:47 UTC
+.2026-10-31 01:24:57.139 UTC [251] LOG:  starting backup recovery with redo LSN 0/14000028, checkpoint LSN 0/14000080, on timeline ID 1
+2026-10-31 01:24:57.176 UTC [251] LOG:  restored log file "000000010000000000000014" from archive
+2026-10-31 01:24:57.181 UTC [251] LOG:  starting archive recovery
+2026-10-31 01:24:57.185 UTC [251] LOG:  redo starts at 0/14000028
+2026-10-31 01:24:57.223 UTC [251] LOG:  restored log file "000000010000000000000015" from archive
+2026-10-31 01:24:57.230 UTC [251] LOG:  completed backup recovery with redo LSN 0/14000028 and end LSN 0/14000120
+2026-10-31 01:24:57.230 UTC [251] LOG:  consistent recovery state reached at 0/14000120
+2026-10-31 01:24:57.230 UTC [248] LOG:  database system is ready to accept read-only connections
+ done
+server started
+2026-10-31 01:24:57.277 UTC [251] LOG:  redo done at 0/150027D8 system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.09 s
+2026-10-31 01:24:57.277 UTC [251] LOG:  last completed transaction was at log time 2026-10-31 01:24:52.141742+00
+2026-10-31 01:24:57.318 UTC [251] LOG:  restored log file "000000010000000000000015" from archive
+2026-10-31 01:24:57.348 UTC [251] LOG:  selected new timeline ID: 2
+2026-10-31 01:24:57.395 UTC [251] LOG:  archive recovery complete
+2026-10-31 01:24:57.397 UTC [249] LOG:  checkpoint starting: end-of-recovery immediate wait
+2026-10-31 01:24:57.420 UTC [249] LOG:  checkpoint complete: wrote 6 buffers (0.0%); 0 WAL file(s) added, 0 removed, 2 recycled; write=0.002 s, sync=0.007 s, total=0.026 s; sync files=5, longest=0.002 s, average=0.002 s; distance=32768 kB, estimate=32768 kB; lsn=0/16000028, redo lsn=0/16000028
+2026-10-31 01:24:57.426 UTC [248] LOG:  database system is ready to accept connections
+# exit=0
+VERDICT owner_key_recovery: PASS (restore failed without the key and recovered 180 rows with it)

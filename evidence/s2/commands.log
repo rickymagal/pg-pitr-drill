@@ -1,0 +1,177 @@
+# Missing, corrupt, and unusable WAL are refused by archive-get  (2026-10-31T01:24:08Z)
+## [2026-10-31T01:24:08Z] base backup
+$ docker compose exec -T -u postgres pg-primary pgbackrest --stanza=pitr-drill backup --type=full
+# exit=0
+## [2026-10-31T01:24:13Z] load
+$ ./scripts/load-gen.sh 20 0.05
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+inserted 20 rows (interval=0.05s)
+# exit=0
+## [2026-10-31T01:24:14Z] archive and wait
+$ docker compose exec -T -u postgres pg-primary pgbackrest --stanza=pitr-drill check
+# exit=0
+## [2026-10-31T01:24:14Z] archive-get baseline
+$ docker compose exec -T -u postgres pg-primary bash -c rm -f /tmp/s2base; pgbackrest --stanza=pitr-drill --log-level-console=info archive-get 00000001000000000000000B /tmp/s2base
+2026-10-31 01:24:14.813 P00   INFO: archive-get command begin 2.60.0: [00000001000000000000000B, /tmp/s2base] --exec-id=421-585d6bde --log-level-console=info --pg1-path=/var/lib/postgresql/data --repo1-cipher-pass=<redacted> --repo1-cipher-type=aes-256-cbc --repo1-host=backup-repo --repo1-host-ca-file=/etc/pgbackrest/cert/ca.crt --repo1-host-cert-file=/etc/pgbackrest/cert/pg-primary.crt --repo1-host-key-file=/etc/pgbackrest/cert/pg-primary.key --repo1-host-type=tls --stanza=pitr-drill
+2026-10-31 01:24:14.835 P00   INFO: found 00000001000000000000000B in the repo1: 17-1 archive
+2026-10-31 01:24:14.835 P00   INFO: archive-get command end: completed successfully (23ms)
+# exit=0
+## [2026-10-31T01:24:14Z] snapshot pristine segment
+$ docker compose exec -T -u postgres backup-repo bash -c cp '/var/lib/pgbackrest/archive/pitr-drill/17-1/0000000100000000/00000001000000000000000B-a8acafc7b7487843ba97c4d8f8783501275f2fed.gz' /tmp/s2-wal.orig
+# exit=0
+## [2026-10-31T01:24:14Z] remove segment
+$ docker compose exec -T -u postgres backup-repo bash -c rm -f '/var/lib/pgbackrest/archive/pitr-drill/17-1/0000000100000000/00000001000000000000000B-a8acafc7b7487843ba97c4d8f8783501275f2fed.gz'
+# exit=0
+## [2026-10-31T01:24:15Z] archive-get detects missing wal (expect fail ~ /unable to find .* in the archive/)
+$ docker compose exec -T -u postgres pg-primary bash -c rm -f /tmp/s2b; pgbackrest --stanza=pitr-drill --log-level-console=info archive-get 00000001000000000000000B /tmp/s2b
+2026-10-31 01:24:15.184 P00   INFO: archive-get command begin 2.60.0: [00000001000000000000000B, /tmp/s2b] --exec-id=428-0fd28fc5 --log-level-console=info --pg1-path=/var/lib/postgresql/data --repo1-cipher-pass=<redacted> --repo1-cipher-type=aes-256-cbc --repo1-host=backup-repo --repo1-host-ca-file=/etc/pgbackrest/cert/ca.crt --repo1-host-cert-file=/etc/pgbackrest/cert/pg-primary.crt --repo1-host-key-file=/etc/pgbackrest/cert/pg-primary.key --repo1-host-type=tls --stanza=pitr-drill
+2026-10-31 01:24:15.192 P00   INFO: unable to find 00000001000000000000000B in the archive
+2026-10-31 01:24:15.192 P00   INFO: archive-get command end: completed successfully (9ms)
+# exit=1
+## [2026-10-31T01:24:15Z] repair (missing)
+$ docker compose exec -T -u postgres backup-repo bash -c cp -f /tmp/s2-wal.orig '/var/lib/pgbackrest/archive/pitr-drill/17-1/0000000100000000/00000001000000000000000B-a8acafc7b7487843ba97c4d8f8783501275f2fed.gz'
+# exit=0
+## [2026-10-31T01:24:15Z] archive-get after repair (missing)
+$ docker compose exec -T -u postgres pg-primary bash -c rm -f /tmp/s2c; pgbackrest --stanza=pitr-drill --log-level-console=info archive-get 00000001000000000000000B /tmp/s2c
+2026-10-31 01:24:15.414 P00   INFO: archive-get command begin 2.60.0: [00000001000000000000000B, /tmp/s2c] --exec-id=435-42745557 --log-level-console=info --pg1-path=/var/lib/postgresql/data --repo1-cipher-pass=<redacted> --repo1-cipher-type=aes-256-cbc --repo1-host=backup-repo --repo1-host-ca-file=/etc/pgbackrest/cert/ca.crt --repo1-host-cert-file=/etc/pgbackrest/cert/pg-primary.crt --repo1-host-key-file=/etc/pgbackrest/cert/pg-primary.key --repo1-host-type=tls --stanza=pitr-drill
+2026-10-31 01:24:15.435 P00   INFO: found 00000001000000000000000B in the repo1: 17-1 archive
+2026-10-31 01:24:15.435 P00   INFO: archive-get command end: completed successfully (22ms)
+# exit=0
+## [2026-10-31T01:24:15Z] corrupt segment
+$ docker compose exec -T -u postgres backup-repo bash -c dd if=/dev/urandom of='/var/lib/pgbackrest/archive/pitr-drill/17-1/0000000100000000/00000001000000000000000B-a8acafc7b7487843ba97c4d8f8783501275f2fed.gz' bs=1 count=16 seek=16 conv=notrunc status=none
+# exit=0
+## [2026-10-31T01:24:15Z] archive-get refuses corrupt wal (expect content reject)
+2026-10-31 01:24:15.664 P00   INFO: archive-get command begin 2.60.0: [00000001000000000000000B, /tmp/s2out] --exec-id=442-a551f57a --log-level-console=info --pg1-path=/var/lib/postgresql/data --repo1-cipher-pass=<redacted> --repo1-cipher-type=aes-256-cbc --repo1-host=backup-repo --repo1-host-ca-file=/etc/pgbackrest/cert/ca.crt --repo1-host-cert-file=/etc/pgbackrest/cert/pg-primary.crt --repo1-host-key-file=/etc/pgbackrest/cert/pg-primary.key --repo1-host-type=tls --stanza=pitr-drill
+2026-10-31 01:24:15.683 P00  ERROR: [042]: unable to get 00000001000000000000000B:
+                                    repo1: 17-1/0000000100000000/00000001000000000000000B-a8acafc7b7487843ba97c4d8f8783501275f2fed.gz [FormatError] zlib threw error: [-3] data error
+2026-10-31 01:24:15.683 P00   INFO: archive-get command end: aborted with exception [042]
+# exit=42
+## [2026-10-31T01:24:15Z] repair (corrupt)
+$ docker compose exec -T -u postgres backup-repo bash -c cp -f /tmp/s2-wal.orig '/var/lib/pgbackrest/archive/pitr-drill/17-1/0000000100000000/00000001000000000000000B-a8acafc7b7487843ba97c4d8f8783501275f2fed.gz'
+# exit=0
+## [2026-10-31T01:24:15Z] archive-get after repair (corrupt)
+$ docker compose exec -T -u postgres pg-primary bash -c rm -f /tmp/s2c2; pgbackrest --stanza=pitr-drill --log-level-console=info archive-get 00000001000000000000000B /tmp/s2c2
+2026-10-31 01:24:15.929 P00   INFO: archive-get command begin 2.60.0: [00000001000000000000000B, /tmp/s2c2] --exec-id=449-eeac1e03 --log-level-console=info --pg1-path=/var/lib/postgresql/data --repo1-cipher-pass=<redacted> --repo1-cipher-type=aes-256-cbc --repo1-host=backup-repo --repo1-host-ca-file=/etc/pgbackrest/cert/ca.crt --repo1-host-cert-file=/etc/pgbackrest/cert/pg-primary.crt --repo1-host-key-file=/etc/pgbackrest/cert/pg-primary.key --repo1-host-type=tls --stanza=pitr-drill
+2026-10-31 01:24:15.951 P00   INFO: found 00000001000000000000000B in the repo1: 17-1 archive
+2026-10-31 01:24:15.951 P00   INFO: archive-get command end: completed successfully (23ms)
+# exit=0
+## [2026-10-31T01:24:15Z] truncate segment to zero
+$ docker compose exec -T -u postgres backup-repo bash -c truncate -s 0 '/var/lib/pgbackrest/archive/pitr-drill/17-1/0000000100000000/00000001000000000000000B-a8acafc7b7487843ba97c4d8f8783501275f2fed.gz'
+# exit=0
+## [2026-10-31T01:24:16Z] archive-get refuses unusable wal (expect content reject)
+2026-10-31 01:24:16.164 P00   INFO: archive-get command begin 2.60.0: [00000001000000000000000B, /tmp/s2out] --exec-id=456-44db7505 --log-level-console=info --pg1-path=/var/lib/postgresql/data --repo1-cipher-pass=<redacted> --repo1-cipher-type=aes-256-cbc --repo1-host=backup-repo --repo1-host-ca-file=/etc/pgbackrest/cert/ca.crt --repo1-host-cert-file=/etc/pgbackrest/cert/pg-primary.crt --repo1-host-key-file=/etc/pgbackrest/cert/pg-primary.key --repo1-host-type=tls --stanza=pitr-drill
+2026-10-31 01:24:16.183 P00  ERROR: [042]: unable to get 00000001000000000000000B:
+                                    repo1: 17-1/0000000100000000/00000001000000000000000B-a8acafc7b7487843ba97c4d8f8783501275f2fed.gz [CryptoError] cipher header missing
+2026-10-31 01:24:16.183 P00   INFO: archive-get command end: aborted with exception [042]
+# exit=42
+## [2026-10-31T01:24:16Z] repair (unusable)
+$ docker compose exec -T -u postgres backup-repo bash -c cp -f /tmp/s2-wal.orig '/var/lib/pgbackrest/archive/pitr-drill/17-1/0000000100000000/00000001000000000000000B-a8acafc7b7487843ba97c4d8f8783501275f2fed.gz'
+# exit=0
+## [2026-10-31T01:24:16Z] archive-get after repair (unusable)
+$ docker compose exec -T -u postgres pg-primary bash -c rm -f /tmp/s2c3; pgbackrest --stanza=pitr-drill --log-level-console=info archive-get 00000001000000000000000B /tmp/s2c3
+2026-10-31 01:24:16.430 P00   INFO: archive-get command begin 2.60.0: [00000001000000000000000B, /tmp/s2c3] --exec-id=463-39c39298 --log-level-console=info --pg1-path=/var/lib/postgresql/data --repo1-cipher-pass=<redacted> --repo1-cipher-type=aes-256-cbc --repo1-host=backup-repo --repo1-host-ca-file=/etc/pgbackrest/cert/ca.crt --repo1-host-cert-file=/etc/pgbackrest/cert/pg-primary.crt --repo1-host-key-file=/etc/pgbackrest/cert/pg-primary.key --repo1-host-type=tls --stanza=pitr-drill
+2026-10-31 01:24:16.460 P00   INFO: found 00000001000000000000000B in the repo1: 17-1 archive
+2026-10-31 01:24:16.460 P00   INFO: archive-get command end: completed successfully (32ms)
+# exit=0
+VERDICT wal_missing: PASS (archive-get failed on the absent segment (PASS) and retrieved it after repair (PASS))
+VERDICT wal_corrupt: PASS (archive-get refused the corrupted segment for a content reason (PASS) and retrieved it after repair (PASS))
+VERDICT wal_unusable: PASS (archive-get refused the zero-length segment (PASS) and retrieved it after repair (PASS))
